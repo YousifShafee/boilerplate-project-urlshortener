@@ -57,6 +57,7 @@ const getByShort = (target_id, done) => {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.post('/api/shorturl', (req, res) => {
   var url = req.body.url
+  if(/\/$/.test(url)) { url = url.slice(0,-1);}
   dns.lookup(dns_url(url), {}, (err, address, family) => {
     if (err || !(/^http/.test(url))) {
       res.json({ error: 'Invalid URL' })
@@ -74,14 +75,18 @@ app.post('/api/shorturl', (req, res) => {
   });
 });
 
-app.get('/api/shorturl/:short', (req, res) => {
-  getByShort(req.params.short, (err, data) => {
+app.get('/api/shorturl/:short_url', (req, res) => {
+  getByShort(req.params.short_url, (err, data) => {
     if(!data){
       res.json({error:	"No short URL found for the given input"})
     } else {
       res.redirect(data.url)
     }
   })
+})
+
+app.get('*', (req, res) => {
+  res.sendStatus(404);
 })
 
 dns_url = (url) => {
