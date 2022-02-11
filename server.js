@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
+const upload = multer();
 const app = express();
 const bodyParser = require('body-parser');
 const dns = require('dns');
@@ -54,7 +56,9 @@ const getByShort = (target_id, done) => {
 }
 
 // Your first API endpoint
+app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(upload.array());
 app.post('/api/shorturl', (req, res) => {
   var url = req.body.url
   if(/\/$/.test(url)) { url = url.slice(0,-1);}
