@@ -20,7 +20,7 @@ app.get('/', function (req, res) {
 
 // Setup DataBase
 var mongoose = require('mongoose')
-mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 const Schema = mongoose.Schema;
 let UrlData = mongoose.model('UrlData', new Schema({
   url: String,
@@ -82,7 +82,7 @@ app.post('/api/shorturl', (req, res) => {
 app.get('/api/shorturl/:short_url', (req, res) => {
   getByShort(req.params.short_url, (err, data) => {
     if(!data){
-      res.json({error:	"No short URL found for the given input"})
+      res.json({error: "No short URL found for the given input"})
     } else {
       res.redirect(data.url)
     }
