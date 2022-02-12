@@ -2,16 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const upload = multer();
 const app = express();
 const bodyParser = require('body-parser');
 const dns = require('dns');
 
-// Basic Configuration
-const port = process.env.PORT || 3000;
-
 app.use(cors());
-
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(multer().array());
 app.use('/public', express.static(`${process.cwd()}/public`));
 
 app.get('/', function (req, res) {
@@ -20,55 +18,55 @@ app.get('/', function (req, res) {
 
 // Setup DataBase
 var mongoose = require('mongoose')
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(process.env.DB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 const Schema = mongoose.Schema;
-let UrlData = mongoose.model('UrlData', new Schema({
-  url: String,
+let Shortener = mongoose.model('Shortener', new Schema({
+  original_url: String,
   short_url: Number,
 }))
 
 const createShort = (target_url, done) => {
-  var new_url = new UrlData();
-  new_url.url = target_url;
-  UrlData.findOne().sort({ short_url: -1 }).exec((err, data) => {
-    if(data){
-      new_url.short_url = data.short_url + 1;
-      new_url.save();
-      done(null, new_url)
+  var new_url = new Shortener();
+  new_url.original_url = target_url;
+  Shortener.findOne().sort({ short_url: -1 }).exec((err, last_url) => {
+    if(err) {
+      done(err, null)
+      return
+    }
+    else if(last_url){
+      new_url.short_url = last_url.short_url + 1;
     } else {
       new_url.short_url = 1;
-      new_url.save();
-      done(null, new_url)
     }
+    new_url.save((err, data) => {
+      done(err, data)
+    })
   });
 }
 
 const getByName = (target_url, done) => {
-  UrlData.findOne({ url: target_url }, (err, data) => {
-    done(null, data)
+  Shortener.findOne({ original_url: target_url }, (err, data) => {
+    done(err, data)
   });
 }
 
 const getByShort = (target_id, done) => {
-  UrlData.findOne({short_url: target_id}, (err, data) => {
-    done(null, data)
+  Shortener.findOne({short_url: target_id}, (err, data) => {
+    done(err, data)
   })
 }
 
 // Your first API endpoint
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(upload.array());
 app.post('/api/shorturl', (req, res) => {
   var url = req.body.url
   if(/\/$/.test(url)) { url = url.slice(0,-1);}
-  dns.lookup(dns_url(url), {}, (err, address, family) => {
-    if (err || !(/^http/.test(url))) {
+  dns.lookup(dns_url(url), {},(err, address, family) => {
+    if (!(/^http/.test(url))) {
       res.json({ error: 'Invalid URL' })
       return
     }
     getByName(url, (err, data) => {
-      if(!data){
+      if(err || !data){
         createShort(url, (err, data) => {
           res.json({ original_url: url, short_url: data.short_url })
         })
@@ -80,11 +78,12 @@ app.post('/api/shorturl', (req, res) => {
 });
 
 app.get('/api/shorturl/:short_url', (req, res) => {
+  console.log(req.params.short_url)
   getByShort(req.params.short_url, (err, data) => {
     if(!data){
       res.json({error: "No short URL found for the given input"})
     } else {
-      res.redirect(data.url)
+      res.redirect(data.original_url)
     }
   })
 })
@@ -99,6 +98,6 @@ dns_url = (url) => {
   return url;
 }
 
-app.listen(port, function () {
-  console.log(`Listening on port ${port}`);
-});
+const listener = app.listen(process.env.PORT || 3000, () => {
+  console.log('Your app is listening on port ' + listener.address().port)
+})
